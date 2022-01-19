@@ -101,7 +101,7 @@ async function getTextsFromFile(filePath: string) {
 
 			if (options.changeHtml) {
 				let results = '';
-				text.forEach((item) => results = data.replace(item, customText + getKey(textMap as any, item)));
+				text.forEach((item) => results = data.replace(item, '{{' + customText + getKey(textMap as any, item) + '}}'));
 				fs.writeFile(filePath, results, 'utf8', (err) => {
 					if (err) {
 						return console.error(err);

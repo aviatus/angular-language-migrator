@@ -5,7 +5,7 @@
 	"icon": "images/icon.png",
 	"publisher": "AhmetYildiz",
 	"repository": "https://github.com/aviatus/angular-language-migrator.git",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"engines": {
 		"vscode": "^1.63.0"
 	},

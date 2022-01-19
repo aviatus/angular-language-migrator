@@ -2,6 +2,7 @@
 	"name": "angular-language-migrator",
 	"displayName": "Angular Language Migrator",
 	"description": "Replace static texts in html to variable for dynamic language support",
+	"icon": "https://github.com/aviatus/aviatus.github.io/blob/main/img/angular-icon.png?raw=true",
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.63.0"

@@ -20,7 +20,7 @@ export function createTranslateFile(currentlyWorkspacePath: string) {
 }
 
 export function createFile(currentlyWorkspacePath: string, translateMap: TranslatesJSON): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         fs.writeFile(currentlyWorkspacePath + "/language-migration-output.json", JSON.stringify(translateMap), (err) => {
             if (err) {
                 console.error(err);

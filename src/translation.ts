@@ -28,7 +28,7 @@ export function getTagRegex(tag: string): RegExp {
     return new RegExp(`<${tag}.*>(.*?)<\/${tag}>`, 'g');
 }
 
-export function getKey(map: Map<string, string>, val: string): string {
+export function getKey(map: Map<string, string> | [string, string][], val: string): string {
     return [...map].find(([, value]) => val === value)?.[0] as string;
 }
 
@@ -77,10 +77,10 @@ export function createTextMap(text: string[], fileName: string) {
 
 export function replaceHtmlTexts(text: string[], textMap: [string, string][], data: string, filePath: string, moduleName: string): Promise<void> {
     let results = '';
-    text.forEach((item) => results = data.replace(item, `{{ '` + moduleName + '.' + getKey(textMap as any, item)
+    text.forEach((item) => results = data.replace(item, `{{ '` + moduleName + '.' + getKey(textMap, item)
         + `' | translate }}`));
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         fs.writeFile(filePath, results, 'utf8', (writeErr) => {
             if (writeErr) {
                 console.error(writeErr);

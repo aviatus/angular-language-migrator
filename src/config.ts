@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { IOptions } from './models';
 
-export let options: IOptions = {
+export const options: IOptions = {
     replaceHtmlTexts: true
 };
 

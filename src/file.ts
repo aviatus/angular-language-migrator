@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+import { options } from './config';
 import { TranslatesJSON } from './models';
 import * as Translation from './translation';
 
@@ -30,13 +31,40 @@ export function createFile(currentlyWorkspacePath: string, translateMap: Transla
     });
 }
 
+export function getTextsFromFile(filePath: string): Promise<void> {
+    const fileName = Translation.getUppercase(path.parse(filePath).base);
+    const moduleName = Translation.getModuleName(filePath);
+    let moduleTranslates = new Map<string, string>();
+
+    return new Promise((resolve) => {
+        fs.readFile(filePath, 'utf-8', (err, data) => {
+            if (err) {
+                console.error(err);
+            } else {
+                const text = Translation.trimHtml(data);
+                if (text.length > 0) {
+                    const textMap = Translation.createTextMap(text, fileName);
+                    moduleTranslates = new Map([...moduleTranslates].concat(textMap));
+
+                    if (options.replaceHtmlTexts) {
+                        writePromises.push(Translation.replaceHtmlTexts(text, textMap, data, filePath, moduleName));
+                    }
+                }
+
+                Translation.setTranslates(moduleName, moduleTranslates);
+            }
+            resolve();
+        });
+    });
+}
+
 export function readScannedFiles(scannedFiles: Promise<string | string[]>): Promise<void[]> {
     return Promise.resolve(scannedFiles).then((files: string | string[]) => {
         if (!Array.isArray(files)) {
             files = [files];
         }
 
-        const filePromises: Promise<void>[] = files.map(fileName => Translation.getTextsFromFile(fileName));
+        const filePromises: Promise<void>[] = files.map(fileName => getTextsFromFile(fileName));
         return Promise.all(filePromises);
     });
 }

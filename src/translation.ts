@@ -1,8 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
 
-import { options } from './config';
-import { writePromises } from './file';
 import { TranslatesJSON } from './models';
 
 const base = "0000";
@@ -39,33 +36,6 @@ export function getUppercase(text: string): string {
 export function getModuleName(filePath: string) {
     const moduleIndex = filePath.split('\\').findIndex(item => item === 'app');
     return moduleIndex > 0 ? getUppercase(filePath.split('\\')[moduleIndex + 1]) : '';
-}
-
-export function getTextsFromFile(filePath: string): Promise<void> {
-    const fileName = getUppercase(path.parse(filePath).base);
-    const moduleName = getModuleName(filePath);
-    let moduleTranslates = new Map<string, string>();
-
-    return new Promise((resolve) => {
-        fs.readFile(filePath, 'utf-8', (err, data) => {
-            if (err) {
-                console.error(err);
-            } else {
-                const text = trimHtml(data);
-                if (text.length > 0) {
-                    const textMap = createTextMap(text, fileName);
-                    moduleTranslates = new Map([...moduleTranslates].concat(textMap));
-
-                    if (options.replaceHtmlTexts) {
-                        writePromises.push(replaceHtmlTexts(text, textMap, data, filePath, moduleName));
-                    }
-                }
-
-                setTranslates(moduleName, moduleTranslates);
-            }
-            resolve();
-        });
-    });
 }
 
 export function createTextMap(text: string[], fileName: string) {

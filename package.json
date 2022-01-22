@@ -17,6 +17,21 @@
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
+		"configuration": {
+			"title": "Angular Language Migrator ",
+			"properties": {
+				"angular-language-migrator.replaceHtmlTexts": {
+					"type": "boolean",
+					"default": true,
+					"description": "Replace detected text with keys."
+				},
+				"angular-language-migrator.refactorTypescript": {
+					"type": "boolean",
+					"default": true,
+					"description": "Add missing key definitions in html to .ts files."
+				}
+			}
+		},
 		"commands": [
 			{
 				"command": "angular-language-migrator.startMigration",

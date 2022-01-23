@@ -24,11 +24,6 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Replace detected text with keys."
-				},
-				"angular-language-migrator.refactorTypescript": {
-					"type": "boolean",
-					"default": true,
-					"description": "Add missing key definitions in html to .ts files."
 				}
 			}
 		},

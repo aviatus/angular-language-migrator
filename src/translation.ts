@@ -1,10 +1,11 @@
 import * as fs from 'fs';
+import { JSDOM } from 'jsdom';
+import * as vscode from 'vscode';
 
 import { TranslatesJSON } from './models';
 
-const base = "0000";
-const tags = ['a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'td', 'label'];
-const bannedChars = ['>', '<', '{{', '}}'];
+const base = "000";
+const bannedChars = ['<', '>', '{{', '}}'];
 const punctiations = ['[', '.', ',', '-', '_', ';', '!', '^', '#', '+', '$', '%', '&', '*', ':', '!', '?', ']'];
 const translates = new Map<string, Map<string, string>>();
 
@@ -20,44 +21,11 @@ export function createTranslationJSON() {
     return translateMap;
 }
 
-export function getTagRegex(tag: string): RegExp {
-    // eslint-disable-next-line no-useless-escape
-    return new RegExp(`<${tag}.*>(.*?)<\/${tag}>`, 'g');
-}
-
-export function getKey(map: Map<string, string> | [string, string][], val: string): string {
-    return [...map].find(([, value]) => val === value)?.[0] as string;
-}
-
-export function getUppercase(text: string): string {
-    return text.split('.')[0].toUpperCase().replace(/-/g, '_');
-}
-
-export function getModuleName(filePath: string) {
-    const moduleIndex = filePath.split('\\').findIndex(item => item === 'app');
-    return moduleIndex > 0 ? getUppercase(filePath.split('\\')[moduleIndex + 1]) : '';
-}
-
 export function createTextMap(text: string[], fileName: string) {
     return [...new Map(text.map((t: string, index: number) => {
         const key = fileName + '_' + base.substring(0, base.length - index.toString().length) + index.toString();
         return [key, t];
     }))];
-}
-
-export function replaceHtmlTexts(text: string[], textMap: [string, string][], data: string, filePath: string, moduleName: string): Promise<void> {
-    let results = '';
-    text.forEach((item) => results = data.replace(item, `{{ '` + moduleName + '.' + getKey(textMap, item)
-        + `' | translate }}`));
-
-    return new Promise((resolve) => {
-        fs.writeFile(filePath, results, 'utf8', (writeErr) => {
-            if (writeErr) {
-                console.error(writeErr);
-            }
-            resolve();
-        });
-    });
 }
 
 export function setTranslates(moduleName: string, moduleTranslates: Map<string, string>) {
@@ -72,7 +40,82 @@ export function setTranslates(moduleName: string, moduleTranslates: Map<string, 
     translates.set(moduleName, keys);
 }
 
-export function mergedMaps(...maps: Map<string, string>[]): Map<string, string> {
+export function scanDOMNodes(node: Node) {
+    const texts = [];
+    do {
+        if (node?.textContent && node.nodeType !== 8) {
+            const text = node?.textContent.replace(/\n/g, '');
+            const isTextFitForTranslation = checkTextFromNodeFitForTranslation(text);
+
+            if (isTextFitForTranslation) {
+                const cleanedText = text.replace(/\s+/g, ' ');
+                texts.push(cleanedText);
+            }
+        }
+
+        node = node.firstChild as Node || node.nextSibling as Node || function () {
+            while ((node = node.parentNode as Node) && !node.nextSibling);
+            return node ? node.nextSibling : null;
+        }();
+    } while (node);
+
+    return [...new Set(texts)];
+}
+
+export function replaceDOMNodes(dom: JSDOM, translateMap: [string, string][], moduleName: string): string {
+    let node = dom.window.document as Node;
+    do {
+        if (node?.textContent) {
+            const cleanText = node?.textContent.replace(/\n/g, '').replace(/\s+/g, ' ')
+            const detectedTranslate = translateMap.find((translate) => translate[1] === cleanText);
+
+            if (detectedTranslate) {
+                const translateHTMLKey = `{{ '` + moduleName + '.' + detectedTranslate[0] + `' | translate }}`;
+                node.textContent = translateHTMLKey;
+            }
+        }
+
+        node = node.firstChild as Node || node.nextSibling as Node || function () {
+            while ((node = node.parentNode as Node) && !node.nextSibling);
+            return node ? node.nextSibling : null;
+        }();
+    } while (node);
+
+    return dom.window.document.body?.innerHTML;
+}
+
+export function getUppercase(text: string): string {
+    return text.split('.')[0].toUpperCase().replace(/-/g, '_');
+}
+
+export function getModuleName(filePath: string) {
+    const moduleIndex = filePath.split('\\').findIndex(item => item === 'app');
+    return moduleIndex > 0 ? getUppercase(filePath.split('\\')[moduleIndex + 1]) : '';
+}
+
+export function removeParentNodeTranslateDuplications(texts: string[]) {
+    return texts.filter((translate: string) => !texts.some((t: string) => t !== translate && translate.includes(t)));
+}
+
+export function replaceHtmlTexts(textMap: [string, string][], dom: JSDOM, filePath: string, moduleName: string): Promise<void> {
+    const replacedFile = replaceDOMNodes(dom, textMap, moduleName);
+
+    return new Promise((resolve) => {
+        if (!replacedFile) {
+            throwReplacementError(filePath);
+            resolve();
+        } else {
+            fs.writeFile(filePath, replacedFile, 'utf8', (writeErr) => {
+                if (writeErr) {
+                    console.error(writeErr);
+                }
+                resolve();
+            });
+        }
+    });
+}
+
+function mergedMaps(...maps: Map<string, string>[]): Map<string, string> {
     const dataMap = new Map<string, string>([]);
     for (const map of maps) {
         for (const [key, value] of map) {
@@ -83,13 +126,17 @@ export function mergedMaps(...maps: Map<string, string>[]): Map<string, string> 
     return dataMap;
 }
 
-export function trimHtml(text: string): string[] {
-    const nTags: Array<RegExpMatchArray | null> = tags.map((tag) => text.match(getTagRegex(tag)));
-    // eslint-disable-next-line prefer-spread
-    let merged: string[] = [].concat.apply([], nTags as []).filter(a => a);
-    if (merged) {
-        merged = merged.map(t => t.replace(/<\/?[^>]+(>|$)/g, "")).filter(t => t);
-    }
+function checkTextFromNodeFitForTranslation(text: string): boolean {
+    const trimmedText = text.trim();
+    const isNotPunctiation = punctiations.every((p) => trimmedText !== p);
+    const isNotContainBannedChars = bannedChars.every(char => !text.includes(char));
+    const isNotNumber = isNaN(+text);
 
-    return merged.filter(t => bannedChars.every((char) => !t.includes(char)) && !punctiations.some((char) => t === char));
+    return trimmedText.length > 0 && isNotPunctiation && isNotContainBannedChars && isNotNumber;
+}
+
+function throwReplacementError(path: string) {
+    const error = 'ERR:1001: Replacement error: ' + path;
+    console.error(error);
+    vscode.window.showInformationMessage(error);
 }

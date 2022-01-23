@@ -94,7 +94,7 @@ export function getModuleName(filePath: string) {
 }
 
 export function removeParentNodeTranslateDuplications(texts: string[]) {
-    return texts.filter((translate: string) => !texts.some((t: string) => t !== translate && translate.includes(t)));
+    return texts.filter((translate: string, i: number) => !texts.some((t: string, j: number) => i < j && translate.includes(t)));
 }
 
 export function replaceHtmlTexts(textMap: [string, string][], dom: JSDOM, filePath: string, moduleName: string): Promise<void> {

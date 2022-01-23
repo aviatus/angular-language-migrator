@@ -1,4 +1,6 @@
 import * as fs from 'fs';
+import { JSDOM } from 'jsdom';
+import * as vscode from 'vscode';
 
 import { TranslatesJSON } from './models';
 
@@ -38,7 +40,7 @@ export function setTranslates(moduleName: string, moduleTranslates: Map<string, 
     translates.set(moduleName, keys);
 }
 
-export function travelDOMNodes(node: Node) {
+export function scanDOMNodes(node: Node) {
     const texts = [];
     do {
         if (node?.textContent && node.nodeType !== 8) {
@@ -60,6 +62,28 @@ export function travelDOMNodes(node: Node) {
     return [...new Set(texts)];
 }
 
+export function replaceDOMNodes(dom: JSDOM, translateMap: [string, string][], moduleName: string): string {
+    let node = dom.window.document as Node;
+    do {
+        if (node?.textContent) {
+            const cleanText = node?.textContent.replace(/\n/g, '').replace(/\s+/g, ' ')
+            const detectedTranslate = translateMap.find((translate) => translate[1] === cleanText);
+
+            if (detectedTranslate) {
+                const translateHTMLKey = `{{ '` + moduleName + '.' + detectedTranslate[0] + `' | translate }}`;
+                node.textContent = translateHTMLKey;
+            }
+        }
+
+        node = node.firstChild as Node || node.nextSibling as Node || function () {
+            while ((node = node.parentNode as Node) && !node.nextSibling);
+            return node ? node.nextSibling : null;
+        }();
+    } while (node);
+
+    return dom.window.document.body?.innerHTML;
+}
+
 export function getUppercase(text: string): string {
     return text.split('.')[0].toUpperCase().replace(/-/g, '_');
 }
@@ -73,18 +97,21 @@ export function removeParentNodeTranslateDuplications(texts: string[]) {
     return texts.filter((translate: string) => !texts.some((t: string) => t !== translate && translate.includes(t)));
 }
 
-export function replaceHtmlTexts(text: string[], textMap: [string, string][], data: string, filePath: string, moduleName: string): Promise<void> {
-    let results = '';
-    text.forEach((item) => results = data.replace(item, `{{ '` + moduleName + '.' + getKey(textMap, item)
-        + `' | translate }}`));
+export function replaceHtmlTexts(textMap: [string, string][], dom: JSDOM, filePath: string, moduleName: string): Promise<void> {
+    const replacedFile = replaceDOMNodes(dom, textMap, moduleName);
 
     return new Promise((resolve) => {
-        fs.writeFile(filePath, results, 'utf8', (writeErr) => {
-            if (writeErr) {
-                console.error(writeErr);
-            }
+        if (!replacedFile) {
+            throwReplacementError(filePath);
             resolve();
-        });
+        } else {
+            fs.writeFile(filePath, replacedFile, 'utf8', (writeErr) => {
+                if (writeErr) {
+                    console.error(writeErr);
+                }
+                resolve();
+            });
+        }
     });
 }
 
@@ -99,10 +126,6 @@ function mergedMaps(...maps: Map<string, string>[]): Map<string, string> {
     return dataMap;
 }
 
-function getKey(map: Map<string, string> | [string, string][], val: string): string {
-    return [...map].find(([, value]) => val === value)?.[0] as string;
-}
-
 function checkTextFromNodeFitForTranslation(text: string): boolean {
     const trimmedText = text.trim();
     const isNotPunctiation = punctiations.every((p) => trimmedText !== p);
@@ -110,4 +133,10 @@ function checkTextFromNodeFitForTranslation(text: string): boolean {
     const isNotNumber = isNaN(+text);
 
     return trimmedText.length > 0 && isNotPunctiation && isNotContainBannedChars && isNotNumber;
+}
+
+function throwReplacementError(path: string) {
+    const error = 'ERR:1001: Replacement error: ' + path;
+    console.error(error);
+    vscode.window.showInformationMessage(error);
 }

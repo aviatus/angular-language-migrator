@@ -11,7 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Language migration started...');
 
 		if (vscode.workspace.workspaceFolders !== undefined) {
-			const currentlyWorkspacePath = selectedPath?.length ? selectedPath : vscode.workspace.workspaceFolders[0].uri.fsPath + '/src';
+			const currentlyWorkspacePath = selectedPath?.length ? selectedPath : vscode.workspace.workspaceFolders[0].uri.fsPath + '/src/app';
 			const scannedFiles = File.scanFiles(currentlyWorkspacePath);
 			const readFiles = File.readScannedFiles(scannedFiles);
 

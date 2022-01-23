@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as JSParser from 'jsdom';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -41,13 +42,16 @@ export function getTextsFromFile(filePath: string): Promise<void> {
             if (err) {
                 console.error(err);
             } else {
-                const text = Translation.trimHtml(data);
-                if (text.length > 0) {
-                    const textMap = Translation.createTextMap(text, fileName);
+                const dom = new JSParser.JSDOM('<!DOCTYPE html>' + data);
+                let translates = Translation.travelDOMNodes(dom.window.document);
+                translates = Translation.removeParentNodeTranslateDuplications(translates);
+
+                if (translates.length > 0) {
+                    const textMap = Translation.createTextMap(translates, fileName);
                     moduleTranslates = new Map([...moduleTranslates].concat(textMap));
 
                     if (options.replaceHtmlTexts) {
-                        writePromises.push(Translation.replaceHtmlTexts(text, textMap, data, filePath, moduleName));
+                        writePromises.push(Translation.replaceHtmlTexts(translates, textMap, data, filePath, moduleName));
                     }
                 }
 

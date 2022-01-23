@@ -2,9 +2,8 @@ import * as fs from 'fs';
 
 import { TranslatesJSON } from './models';
 
-const base = "0000";
-const tags = ['a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'td', 'label'];
-const bannedChars = ['>', '<', '{{', '}}'];
+const base = "000";
+const bannedChars = ['<', '>', '{{', '}}'];
 const punctiations = ['[', '.', ',', '-', '_', ';', '!', '^', '#', '+', '$', '%', '&', '*', ':', '!', '?', ']'];
 const translates = new Map<string, Map<string, string>>();
 
@@ -18,11 +17,6 @@ export function createTranslationJSON() {
     });
 
     return translateMap;
-}
-
-export function getTagRegex(tag: string): RegExp {
-    // eslint-disable-next-line no-useless-escape
-    return new RegExp(`<${tag}.*>(.*?)<\/${tag}>`, 'g');
 }
 
 export function getKey(map: Map<string, string> | [string, string][], val: string): string {
@@ -83,13 +77,30 @@ export function mergedMaps(...maps: Map<string, string>[]): Map<string, string> 
     return dataMap;
 }
 
-export function trimHtml(text: string): string[] {
-    const nTags: Array<RegExpMatchArray | null> = tags.map((tag) => text.match(getTagRegex(tag)));
-    // eslint-disable-next-line prefer-spread
-    let merged: string[] = [].concat.apply([], nTags as []).filter(a => a);
-    if (merged) {
-        merged = merged.map(t => t.replace(/<\/?[^>]+(>|$)/g, "")).filter(t => t);
-    }
+export function removeParentNodeTranslateDuplications(texts: string[]) {
+    return texts.filter((translate: string) => !texts.some((t: string) => t !== translate && translate.includes(t)));
+}
 
-    return merged.filter(t => bannedChars.every((char) => !t.includes(char)) && !punctiations.some((char) => t === char));
+export function travelDOMNodes(node: Node) {
+    const texts = [];
+    do {
+        if (node?.textContent) {
+            const text = node?.textContent.replace(/\n/g, '');
+            const trimmedText = text.trim();
+            const isTextFitForTranslation = trimmedText.length > 0 && punctiations.every((p) => trimmedText !== p) &&
+                bannedChars.every(char => !text.includes(char)) && isNaN(+text);
+
+            if (isTextFitForTranslation) {
+                const cleanedText = text.replace(/\s+/g, ' ');
+                texts.push(cleanedText);
+            }
+        }
+
+        node = node.firstChild as Node || node.nextSibling as Node || function () {
+            while ((node = node.parentNode as Node) && !node.nextSibling);
+            return node ? node.nextSibling : null;
+        }();
+    } while (node);
+
+    return [...new Set(texts)];
 }

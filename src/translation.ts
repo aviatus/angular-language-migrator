@@ -84,7 +84,7 @@ export function removeParentNodeTranslateDuplications(texts: string[]) {
 export function travelDOMNodes(node: Node) {
     const texts = [];
     do {
-        if (node?.textContent) {
+        if (node?.textContent && node.nodeType !== 8) {
             const text = node?.textContent.replace(/\n/g, '');
             const trimmedText = text.trim();
             const isTextFitForTranslation = trimmedText.length > 0 && punctiations.every((p) => trimmedText !== p) &&

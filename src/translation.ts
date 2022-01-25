@@ -97,19 +97,19 @@ export function removeParentNodeTranslateDuplications(texts: string[]) {
     return texts.filter((translate: string, i: number) => !texts.some((t: string, j: number) => i < j && translate.includes(t)));
 }
 
-export function replaceHtmlTexts(textMap: [string, string][], dom: JSDOM, filePath: string, moduleName: string): Promise<void> {
+export function replaceHtmlTexts(textMap: [string, string][], dom: JSDOM, filePath: string, moduleName: string): Promise<boolean> {
     const replacedFile = replaceDOMNodes(dom, textMap, moduleName);
 
     return new Promise((resolve) => {
         if (!replacedFile) {
             throwReplacementError(filePath);
-            resolve();
+            resolve(false);
         } else {
             fs.writeFile(filePath, replacedFile, 'utf8', (writeErr) => {
                 if (writeErr) {
                     console.error(writeErr);
                 }
-                resolve();
+                resolve(true);
             });
         }
     });
@@ -138,5 +138,5 @@ function checkTextFromNodeFitForTranslation(text: string): boolean {
 function throwReplacementError(path: string) {
     const error = 'ERR:1001: Replacement error: ' + path;
     console.error(error);
-    vscode.window.showInformationMessage(error);
+    vscode.window.showErrorMessage(error);
 }

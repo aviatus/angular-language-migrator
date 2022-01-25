@@ -9,21 +9,20 @@ import * as Translation from './translation';
 
 const { readdir } = fs.promises;
 
-// eslint-disable-next-line prefer-const
-export let writePromises: Promise<void>[] = [];
+export const writePromises: Promise<boolean>[] = [];
 
 export function createTranslateFile(currentlyWorkspacePath: string) {
     const translateMap = Translation.createTranslationJSON();
     const translateFile = createFile(currentlyWorkspacePath, translateMap);
 
     translateFile.then(() => {
-        vscode.window.showInformationMessage('Language migration completed.');
+        vscode.window.showInformationMessage('Translation file has been created.');
     });
 }
 
 export function createFile(currentlyWorkspacePath: string, translateMap: TranslatesJSON): Promise<void> {
     return new Promise((resolve) => {
-        fs.writeFile(currentlyWorkspacePath + "/language-migration-output.json", JSON.stringify(translateMap), (err) => {
+        fs.writeFile(currentlyWorkspacePath + "/translation.json", JSON.stringify(translateMap), (err) => {
             if (err) {
                 console.error(err);
             }

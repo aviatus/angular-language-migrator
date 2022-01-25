@@ -8,19 +8,19 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const disposable = vscode.commands.registerCommand('angular-language-migrator.startMigration', async () => {
 		const selectedPath = await vscode.window.showInputBox();
-		vscode.window.showInformationMessage('Language migration started...');
+		vscode.window.showInformationMessage('Project scan started...');
 
 		if (vscode.workspace.workspaceFolders !== undefined) {
 			const currentlyWorkspacePath = selectedPath?.length ? selectedPath : vscode.workspace.workspaceFolders[0].uri.fsPath + '/src/app';
 			const scannedFiles = File.scanFiles(currentlyWorkspacePath);
 			const readFiles = File.readScannedFiles(scannedFiles);
 
-			readFiles.then(() => {
-				vscode.window.showInformationMessage('Scanning successfully completed.');
-
+			readFiles.then((files) => {
+				vscode.window.showInformationMessage(files.length + ' files are successfully scanned.');
 				if (File.writePromises.length > 0) {
-					Promise.all(File.writePromises).then(() => {
-						vscode.window.showInformationMessage('Language HTML change completed.');
+					Promise.all(File.writePromises).then((status) => {
+						const errorCount = status.filter((s) => !s).length;
+						vscode.window.showInformationMessage(status.length + ' files successfull updated. ' + errorCount + ' files could not be updated.');
 						File.createTranslateFile(currentlyWorkspacePath);
 					});
 				} else {
